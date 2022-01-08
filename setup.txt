@@ -1,0 +1,136 @@
+SOFTWARE SETUP
+
+This program is intended to run on a Raspberry Pi.
+Dependencies:
+  Linux e.g. Raspbian
+  Python 3.8+ ("apt-get install python3")
+  pigpiod service ("systemctl enable pigpiod")
+  spotipy ("pip3 install spotipy")
+  spotipy ("pip3 install pigpio")
+
+Configure your Raspberry Pi to have a fixed IP address
+on your LAN.
+
+
+SPOTIFY
+
+You must have a user account on Spotify.
+Open a developer account for your user account by logging in 
+at https://developer.spotify.com
+
+Create a new app (which can have any name).
+This will give you a Client ID and a Client Secret.
+
+Grant your Spotify user account access to the app
+(using "add new user") and add a redirect URI
+"http://1.2.3.4:8000/access". Substitute the RPi's
+fixed IP address in place of "1.2.3.4".
+
+
+CONFIGURATION FILE
+
+On the RPi, choose a user account for this program
+(not root). Within the home directory for the user
+(e.g. "/home/pi"), create a configuration file
+named ".buttonserver.conf".
+
+Use "buttonserver.conf.example" as a template for this.
+Edit the file to substitute your Spotify Client ID,
+Client Secret, and redirect URI for the placeholders in the
+file. You can also set the port number if you want to change
+the default of 8000.
+
+The sample client ID and secret are fake and will not work.
+
+
+INITIAL STARTUP AND TESTING
+
+Run buttonserver.py within your chosen user account.
+Use a web browser to connect to "http://1.2.3.4:8000/".
+Substitute the RPi's fixed IP address in place of "1.2.3.4".
+
+The web page should initially require you to click on a link
+to log in to Spotify (with your user account). Once this is
+done, the web page allows some very limited control of
+Spotify apps running elsewhere i.e. play/pause/previous/next.
+Use this for testing. These features will be available through
+the physical buttons.
+
+
+PHYSICAL WIRING
+
+The program assumes you have a circuit board featuring
+three LEDs and three buttons. Each LED is associated with
+a button. The buttons and LEDs are arranged in a horizontal
+line and, from left to right, they are coloured blue, red and
+green.
+
+Here are the pin connections for the RPi.
+
+    Wire          Physical    GPIO    Button  Purpose
+    ----          --------    ----    ------  -------
+    Red           2           n/a     n/a     +5V
+    Blue          22          25      Blue    Button
+    White         24          8       Red     Button
+    Grey          26          7       Blue    LED
+    Brown         30          n/a     n/a     GND
+    Green         36          16      Green   Button
+    Purple        38          20      Green   LED
+    Yellow        40          21      Red     LED
+
+    Wire - my chosen wire colour
+    Physical - physical pin number on the 40 pin header
+    GPIO - Broadcom GPIO pin number
+    Button - associated button (blue/red/green)
+
+Each button is a "normally open" push button. One pin is connected
+to GND and the other is connected to the RPi pin. The "pull up" mode
+is enabled within the RPi so no other components are required.
+
+Each LED is driven by an NPN transistor. I used 2N2222 transistors.
+I connected each RPi pin to the base via a 30k resistor.
+I connected the anode of each LED to 5V and the cathode to the
+2N2222 collector via a suitable resistor which I chose in order that
+all three LEDs would have approximately the same brightness. Values
+were in the range 100R .. 470R. The 2N2222 emitters were all connected
+to GND. LEDs can probably be driven directly by RPi but I found that
+some of my LEDs could not work at 3.3V. Fearing that the RPi might be
+damaged by higher voltages, I decided it would be best to drive them
+via transistors instead. 
+
+I used "Dupont" jump wires to connect to the RPi 40 pin header,
+picking a different colour for each pin.
+
+Having connected the LEDs and buttons you should be able to
+repeat the test steps above - but the LEDs should indicate the
+playback state, and the buttons should control it.
+
+
+SERVICE SETUP
+
+On the RPi, as "root", create a file named
+"/etc/systemd/system/buttonserver.service".
+
+The contents should be taken from buttonserver.service.example:
+modify these to substitute the correct user account name,
+group name and location of buttonserver.py.
+
+Then run "systemctl start buttonserver" to start the service
+and (if this works) "systemctl enable buttonserver" to enable it
+to run automatically when the RPi boots up.
+
+
+USAGE
+
+Blue button: previous track
+Red button: pause / play
+Green button: next track
+
+Red LED on: paused
+Green LED flashing: playing
+Blue LED on: command in progress
+All LEDs on: error
+
+If you see an error, try to open the web page.
+You may need to log in again.
+
