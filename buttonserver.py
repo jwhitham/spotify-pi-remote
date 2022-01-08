@@ -248,7 +248,6 @@ class MySpotifyConnection(threading.Semaphore):
             return State.ERROR
 
     def press_nothing(self) -> State:
-        print("press nothing")
         try:
             s = self.factory()
             return self.get_state(s)
@@ -262,32 +261,60 @@ GPIO = MyGPIOConnection()
 class MyHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         code = "invalid"
+        redirect = True
         if self.path.startswith(REDIRECT_PATH):
             code = self.path[len(REDIRECT_PATH):]
-            self.send_response(302, "Found")
-            self.send_header("Location", "/")
+
+        elif self.path == "/blue":
+            with SPOTIFY:
+                SPOTIFY.press_blue()
+
+        elif self.path == "/red":
+            with SPOTIFY:
+                SPOTIFY.press_red()
+
+        elif self.path == "/green":
+            with SPOTIFY:
+                SPOTIFY.press_red()
+
+        elif self.path == "/nothing":
+            with SPOTIFY:
+                SPOTIFY.press_nothing()
 
         elif self.path in ("", "/"):
+            redirect = False
             self.send_response(200, "OK")
 
         else:
             self.error()
             return
 
+        if redirect:
+            self.send_response(302, "Found")
+            self.send_header("Location", "/")
         self.send_header("Content-type", "html")
         self.end_headers()
 
         with SPOTIFY:
+            state = State.ERROR
             try:
                 SPOTIFY.get_auth_token(code=code)
-                text = "Authentication token is ok"
+                text = "Spotify authentication token is ok"
                 state = SPOTIFY.get_state()
-                text += " (" + state.name + ")"
             except Exception as x:
                 print("Authentication error:" + str(x))
-                text = ("Authentication token must be renewed, " +
+                text = ("Spotify authentication token must be renewed, " +
                     '<a href="' + SPOTIFY.get_authorize_url() +
                     '">click here to log in</a>')
+
+            if state != State.ERROR:
+                text += ("<br/>"
+                    + "Current state: " + state.name
+                    + '<br/><a href="/nothing">Refresh</a>'
+                    + '<br/><a href="/blue">(BLUE) Previous</a>'
+                    + '<br/><a href="/red">(RED) Play/pause</a>'
+                    + '<br/><a href="/green">(GREEN) Next track</a>'
+                    )
 
         update_event(0, 0)
 
