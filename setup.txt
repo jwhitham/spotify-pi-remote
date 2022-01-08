@@ -109,10 +109,10 @@ playback state, and the buttons should control it.
 SERVICE SETUP
 
 On the RPi, as "root", create a file named
-"/etc/systemd/system/buttonserver.service".
+/etc/systemd/system/buttonserver.service
 
-The contents should be taken from buttonserver.service.example:
-modify these to substitute the correct user account name,
+The contents should be taken from buttonserver.service.example.
+Modify these to substitute the correct user account name,
 group name and location of buttonserver.py.
 
 Then run "systemctl start buttonserver" to start the service
@@ -126,11 +126,13 @@ Blue button: previous track
 Red button: pause / play
 Green button: next track
 
-Red LED on: paused
+Red LED on: playback paused
 Green LED flashing: playing
 Blue LED on: command in progress
 All LEDs on: error
 
-If you see an error, try to open the web page.
-You may need to log in again.
+If you see an error:
+* Try to open the web page. You may need to log in again.
+* Start Spotify playback on your PC. The remote control cannot set the
+  output device, or enqueue tracks for playback.
 

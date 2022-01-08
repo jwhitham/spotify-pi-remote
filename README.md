@@ -8,11 +8,12 @@ and then use this remote control to quickly skip tracks you don't
 like and replay ones that you do. At my house it is attached
 to a Concept 2 rowing machine.
 
-![Sample hardware](/example.jpg)
-
 For detailed setup instructions, see setup.txt.
 
 The RPi has no buttons of its own, so some hardware
-needs to be built and connected to the GPIO port.
+needs to be built and connected to the RPi's pins. This consists
+of three buttons and (ideally) three LEDs. However, the software
+does not require anything to be connected to the GPIO, and can be
+tested via a web browser.
 
 
