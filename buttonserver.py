@@ -113,11 +113,11 @@ class MyGPIOConnection(threading.Semaphore):
 
     def is_multi_press(self) -> bool:
         count = 0
-        if not self.gpio.input(PIN_B_BUT):
+        if not self.gpio.read(PIN_B_BUT):
             count += 1
-        if not self.gpio.input(PIN_R_BUT):
+        if not self.gpio.read(PIN_R_BUT):
             count += 1
-        if not self.gpio.input(PIN_G_BUT):
+        if not self.gpio.read(PIN_G_BUT):
             count += 1
         return count >= 2
 

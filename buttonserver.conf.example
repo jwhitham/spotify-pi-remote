@@ -2,5 +2,7 @@
     "client_id": "5d41402abc4b2a76b9719d911017c592",
     "client_secret": "7d793037a0760186574b0282f2f435e7",
     "redirect": "http://1.2.3.4:8000/access",
-    "port": 8000
+    "port": 8000,
+    "notification_ip": "",
+    "notification_port": 0
 }
