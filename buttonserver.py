@@ -13,6 +13,7 @@ import enum
 import typing
 import time
 import json
+import socket
 
 
 # Load the configuration (see setup.txt)
@@ -28,6 +29,8 @@ SCOPES = "user-modify-playback-state,user-read-playback-state"
 LONG_PERIODIC_TIME = 300.0 # poll interval for Spotify status (seconds)
 SHORT_PERIODIC_TIME = 1.0 # flashing LED time
 DEBOUNCE_TIME = 200000 # debounce time (microseconds)
+NOTIFICATION_IP = CONFIG.get("notification_ip", "")
+NOTIFICATION_PORT = int(CONFIG.get("notification_port", 0))
 
 # GPIO pin numbers
 PIN_B_LED = 7
@@ -36,6 +39,11 @@ PIN_G_LED = 20
 PIN_B_BUT = 25
 PIN_R_BUT = 8
 PIN_G_BUT = 16
+
+# Special "pins"
+PIN_NONE = -1
+PIN_ALL = -2
+
 # Wire          Physical    GPIO    Button  Purpose
 # ----          --------    ----    ------  -------
 # Red           2           n/a     n/a     +5V
@@ -72,10 +80,10 @@ class MyGPIOConnection(threading.Semaphore):
         self.gpio.set_pull_up_down(PIN_G_BUT, pigpio.PUD_UP)
         self.gpio.set_pull_up_down(PIN_R_BUT, pigpio.PUD_UP)
         self.update(State.REQUEST)
-        self.gpio.callback(PIN_B_BUT, pigpio.RISING_EDGE, gpio_event)
-        self.gpio.callback(PIN_R_BUT, pigpio.RISING_EDGE, gpio_event)
-        self.gpio.callback(PIN_G_BUT, pigpio.RISING_EDGE, gpio_event)
-        self.last_tick = 0
+        self.gpio.callback(PIN_B_BUT, pigpio.FALLING_EDGE, gpio_event)
+        self.gpio.callback(PIN_R_BUT, pigpio.FALLING_EDGE, gpio_event)
+        self.gpio.callback(PIN_G_BUT, pigpio.FALLING_EDGE, gpio_event)
+        self.last_tick: typing.Dict[int, int] = dict()
         self.last_time = 0.0
 
     def stop(self) -> None:
@@ -84,9 +92,9 @@ class MyGPIOConnection(threading.Semaphore):
     def get_state(self) -> State:
         return self.last_state
 
-    def check_cooldown_time(self, current_tick: int) -> bool:
-        delta = (current_tick - self.last_tick) & ((1 << 32) - 1)
-        self.last_tick = current_tick
+    def check_cooldown_time(self, pin: int, current_tick: int) -> bool:
+        delta = (current_tick - self.last_tick[pin]) & ((1 << 32) - 1)
+        self.last_tick[pin] = current_tick
         if delta > DEBOUNCE_TIME:
             # accept (not cooldown)
             return False
@@ -102,6 +110,16 @@ class MyGPIOConnection(threading.Semaphore):
             return True
         else:
             return False
+
+    def is_multi_press(self) -> bool:
+        count = 0
+        if not self.gpio.input(PIN_B_BUT):
+            count += 1
+        if not self.gpio.input(PIN_R_BUT):
+            count += 1
+        if not self.gpio.input(PIN_G_BUT):
+            count += 1
+        return count >= 2
 
     def update(self, state: State) -> None:
         self.last_state = state
@@ -124,25 +142,30 @@ class MyGPIOConnection(threading.Semaphore):
         
 def gpio_event(pin: int, level: int, tick: int) -> None:
     with GPIO:
-        if GPIO.check_cooldown_time(tick):
+        if GPIO.is_multi_press():
+            pin = PIN_ALL
+        if GPIO.check_cooldown_time(pin, tick):
             return
         GPIO.update(State.REQUEST)
 
-    update_event(pin, level)
+    update_event(pin)
 
-def update_event(pin: int, level: int) -> None:
+def update_event(pin: int) -> None:
     try:
         state = State.ERROR
         with SPOTIFY:
-            if level == 1:
-                if pin == PIN_B_BUT:
-                    state = SPOTIFY.press_blue()
-                elif pin == PIN_G_BUT:
-                    state = SPOTIFY.press_green()
-                elif pin == PIN_R_BUT:
-                    state = SPOTIFY.press_red()
-                else:
-                    state = SPOTIFY.press_nothing()
+            if pin == PIN_B_BUT:
+                state = SPOTIFY.press_blue()
+                notify("p blue")
+            elif pin == PIN_G_BUT:
+                state = SPOTIFY.press_green()
+                notify("p green")
+            elif pin == PIN_R_BUT:
+                state = SPOTIFY.press_red()
+                notify("p red")
+            elif pin == PIN_ALL:
+                state = SPOTIFY.press_nothing()
+                notify("p all")
             else:
                 state = SPOTIFY.press_nothing()
 
@@ -166,12 +189,27 @@ def periodic_event() -> None:
             GPIO.update(state)
             
     if update:
-        update_event(0, 0)
+        update_event(PIN_NONE)
+        notify(state.name.lower())
 
 def periodic_loop() -> None:
     while True:
         periodic_event()
         time.sleep(SHORT_PERIODIC_TIME)
+
+def notify(msg: str) -> None:
+    if (not NOTIFICATION_PORT) or (not NOTIFICATION_IP):
+        return
+
+    target = (NOTIFICATION_IP, NOTIFICATION_PORT)
+    msg1 = msg.encode("ascii")
+
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.sendto(msg1, target)
+    except Exception as e:
+        print("notify('{}') error: {}".format(msg, e))
 
 class MySpotifyConnection(threading.Semaphore):
     def __init__(self) -> None:
@@ -316,7 +354,7 @@ class MyHTTPRequestHandler(BaseHTTPRequestHandler):
                     + '<br/><a href="/green">(GREEN) Next track</a>'
                     )
 
-        update_event(0, 0)
+        update_event(PIN_NONE)
 
         text = "<html><body>" + text + "</body></html>"
         self.wfile.write(text.encode("ascii"))
@@ -338,6 +376,7 @@ if __name__ == "__main__":
         HTTPD = HTTPServer(('', PORT_NUMBER), MyHTTPRequestHandler)
         PERIODIC_THREAD = threading.Thread(target=periodic_loop, daemon=True)
         PERIODIC_THREAD.start()
+        notify("booted")
         HTTPD.serve_forever()
     finally:
         with GPIO:
