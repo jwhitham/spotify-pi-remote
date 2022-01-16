@@ -129,6 +129,7 @@ class MyGPIOConnection(threading.Semaphore):
             count += 1
         if count >= 2:
             # new multipress detected
+            self.last_tick[PIN_ALL] = current_tick
             return True
         return False
 
@@ -161,9 +162,10 @@ def gpio_event(pin: int, level: int, tick: int) -> None:
     with GPIO:
         if GPIO.check_multi_press(tick):
             pin = PIN_ALL
-        if GPIO.check_cooldown_time(pin, tick):
-            return
-        GPIO.update(State.REQUEST)
+        else:
+            if GPIO.check_cooldown_time(pin, tick):
+                return
+            GPIO.update(State.REQUEST)
 
     update_event(pin)
 
