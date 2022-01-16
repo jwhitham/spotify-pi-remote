@@ -29,6 +29,7 @@ SCOPES = "user-modify-playback-state,user-read-playback-state"
 LONG_PERIODIC_TIME = 300.0 # poll interval for Spotify status (seconds)
 SHORT_PERIODIC_TIME = 1.0 # flashing LED time
 DEBOUNCE_TIME = 200000 # debounce time (microseconds)
+MULTI_PRESS_TIME = 5000000  # multipress time (locks out anything else)
 NOTIFICATION_IP = CONFIG.get("notification_ip", "")
 NOTIFICATION_PORT = int(CONFIG.get("notification_port", 0))
 
@@ -114,7 +115,11 @@ class MyGPIOConnection(threading.Semaphore):
         else:
             return False
 
-    def is_multi_press(self) -> bool:
+    def check_multi_press(self, current_tick: int) -> bool:
+        delta = (current_tick - self.last_tick.get(PIN_ALL, 0)) & ((1 << 32) - 1)
+        if delta < MULTI_PRESS_TIME:
+            # existing multi press
+            return True
         count = 0
         if not self.gpio.read(PIN_B_BUT):
             count += 1
@@ -122,7 +127,10 @@ class MyGPIOConnection(threading.Semaphore):
             count += 1
         if not self.gpio.read(PIN_G_BUT):
             count += 1
-        return count >= 2
+        if count >= 2:
+            # new multipress detected
+            return True
+        return False
 
     def update(self, state: State) -> None:
         self.last_state = state
@@ -134,11 +142,11 @@ class MyGPIOConnection(threading.Semaphore):
         elif state == State.PLAYING_2:
             g = 0
         elif state == State.ALL_PRESSED_1:
-            r = g = 1
+            b = 1
         elif state == State.ALL_PRESSED_2:
-            g = b = 1
+            r = 1
         elif state == State.ALL_PRESSED_3:
-            b = r = 1
+            g = 1
         elif state == State.REQUEST:
             b = 1
         elif state == State.ERROR:
@@ -151,7 +159,7 @@ class MyGPIOConnection(threading.Semaphore):
         
 def gpio_event(pin: int, level: int, tick: int) -> None:
     with GPIO:
-        if GPIO.is_multi_press():
+        if GPIO.check_multi_press(tick):
             pin = PIN_ALL
         if GPIO.check_cooldown_time(pin, tick):
             return
