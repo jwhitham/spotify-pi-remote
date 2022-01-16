@@ -63,6 +63,9 @@ class State(enum.Enum):
     PLAYING_2 = enum.auto()
     ERROR = enum.auto()
     REQUEST = enum.auto()
+    ALL_PRESSED_1 = enum.auto()
+    ALL_PRESSED_2 = enum.auto()
+    ALL_PRESSED_3 = enum.auto()
 
 
 class MyGPIOConnection(threading.Semaphore):
@@ -130,6 +133,12 @@ class MyGPIOConnection(threading.Semaphore):
             g = 1
         elif state == State.PLAYING_2:
             g = 0
+        elif state == State.ALL_PRESSED_1:
+            r = g = 1
+        elif state == State.ALL_PRESSED_2:
+            g = b = 1
+        elif state == State.ALL_PRESSED_3:
+            b = r = 1
         elif state == State.REQUEST:
             b = 1
         elif state == State.ERROR:
@@ -156,16 +165,16 @@ def update_event(pin: int) -> None:
         with SPOTIFY:
             if pin == PIN_B_BUT:
                 state = SPOTIFY.press_blue()
-                notify("p blue")
+                notify("press blue")
             elif pin == PIN_G_BUT:
                 state = SPOTIFY.press_green()
-                notify("p green")
+                notify("press green")
             elif pin == PIN_R_BUT:
                 state = SPOTIFY.press_red()
-                notify("p red")
+                notify("press red")
             elif pin == PIN_ALL:
-                state = SPOTIFY.press_nothing()
-                notify("p all")
+                state = SPOTIFY.press_all()
+                notify("press all")
             else:
                 state = SPOTIFY.press_nothing()
 
@@ -186,6 +195,12 @@ def periodic_event() -> None:
                 state = State.PLAYING_1
             elif state == State.PLAYING_1:
                 state = State.PLAYING_2
+            elif state == State.ALL_PRESSED_2:
+                state = State.ALL_PRESSED_3
+            elif state == State.ALL_PRESSED_3:
+                state = State.ALL_PRESSED_1
+            elif state == State.ALL_PRESSED_1:
+                state = State.ALL_PRESSED_2
             GPIO.update(state)
             
     if update:
@@ -284,6 +299,15 @@ class MySpotifyConnection(threading.Semaphore):
             return state
         except Exception:
             return State.ERROR
+
+    def press_all(self) -> State:
+        print("press all")
+        try:
+            s = self.factory()
+            s.pause_playback()
+        except Exception as x:
+            print("Pause/unpause error:", x)
+        return State.ALL_PRESSED_1
 
     def press_nothing(self) -> State:
         try:
