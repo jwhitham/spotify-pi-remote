@@ -93,7 +93,7 @@ class MyGPIOConnection(threading.Semaphore):
         return self.last_state
 
     def check_cooldown_time(self, pin: int, current_tick: int) -> bool:
-        delta = (current_tick - self.last_tick[pin]) & ((1 << 32) - 1)
+        delta = (current_tick - self.last_tick.get(pin, 0)) & ((1 << 32) - 1)
         self.last_tick[pin] = current_tick
         if delta > DEBOUNCE_TIME:
             # accept (not cooldown)
