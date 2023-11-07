@@ -373,6 +373,8 @@ class MyHTTPRequestHandler(BaseHTTPRequestHandler):
                 SPOTIFY.get_auth_token(code=code)
                 text = "Spotify authentication token is ok"
                 state = SPOTIFY.get_state()
+                if state == State.ERROR:
+                    text += ", but get_state() returns ERROR"
             except Exception as x:
                 print("Authentication error:" + str(x))
                 text = ("Spotify authentication token must be renewed, " +
