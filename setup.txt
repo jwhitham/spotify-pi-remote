@@ -2,14 +2,36 @@ SOFTWARE SETUP
 
 This program is intended to run on a Raspberry Pi.
 Dependencies:
-  Linux e.g. Raspbian
-  Python 3.8+ ("apt-get install python3")
-  pigpiod service ("systemctl enable pigpiod")
-  spotipy ("pip3 install spotipy")
-  spotipy ("pip3 install pigpio")
+  Linux e.g. Raspbian, DietPi
+  Python 3.8+ ("apt install python3")
+  Pi GPIO daemon ("apt install pigpio")
+  Python packages
+    spotipy
+    pigpio
 
-Configure your Raspberry Pi to have a fixed IP address
-on your LAN.
+INSTALLATION
+
+Configure your Raspberry Pi to have a fixed IP address on your LAN.
+
+On the RPi, choose a user account for this program (not root).
+Clone the repository into the home directory or some other suitable place:
+
+    cd ~
+    git clone https://github.com/jwhitham/spotify-pi-remote.git
+
+Set up a virtual environment:
+
+    python3 -m venv ~/spotify-pi-remote/.venv
+
+Within the virtual environment, install spotipy and pigpio:
+
+    ~/spotify-pi-remote/.venv/bin/python -m pip install spotipy pigpio
+
+As root, install, enable and start pigpiod:
+
+    apt install pigpiod
+    systemctl enable pigpiod
+    systemctl start pigpiod
 
 
 SPOTIFY
@@ -29,10 +51,8 @@ fixed IP address in place of "1.2.3.4".
 
 CONFIGURATION FILE
 
-On the RPi, choose a user account for this program
-(not root). Within the home directory for the user
-(e.g. "/home/pi"), create a configuration file
-named ".buttonserver.conf".
+Within the home directory for the user chosen during installation,
+create a configuration file named ".buttonserver.conf".
 
 Use "buttonserver.conf.example" as a template for this.
 Edit the file to substitute your Spotify Client ID,
@@ -45,7 +65,10 @@ The sample client ID and secret are fake and will not work.
 
 INITIAL STARTUP AND TESTING
 
-Run buttonserver.py within your chosen user account.
+Run buttonserver.py within the user account:
+
+    ~/spotify-pi-remote/.venv/bin/python ~/spotify-pi-remote/buttonserver.py
+
 Use a web browser to connect to "http://1.2.3.4:8000/".
 Substitute the RPi's fixed IP address in place of "1.2.3.4".
 

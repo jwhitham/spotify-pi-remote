@@ -5,14 +5,12 @@ After=rc-local.service
 [Service]
 Type=simple
 PIDFile=/run/buttonserver.pid
-ExecStart=/usr/bin/python3 /home/pi/spotify-pi-remote/buttonserver.py
+ExecStart=/home/pi/spotify-pi-remote/.venv/bin/python /home/pi/spotify-pi-remote/buttonserver.py
 User=pi
 Group=pi
 Restart=always
-StartLimitIntervalSec=0
 RestartSec=3
 
 [Install]
-Alias=buttonserver-service
 WantedBy=multi-user.target
 
