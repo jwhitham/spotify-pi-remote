@@ -277,6 +277,15 @@ class MySpotifyConnection(threading.Semaphore):
         if not cp.get("is_playing", False):
             return State.STOPPED
 
+        artist = track = ""
+        try:
+            track = cp["item"]["name"]
+            artist = cp["item"]["artists"][0]["name"]
+        except Exception:
+            pass
+        if track:
+            notify(f"playing: {artist} - {track}")
+
         return State.PLAYING_1
 
     def press_blue(self) -> State:
