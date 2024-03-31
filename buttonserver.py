@@ -192,7 +192,7 @@ def update_event(pin: int) -> None:
             GPIO.update(state)
 
     except Exception as x:
-        print("Button error: " + str(x))
+        notify("Button error: " + str(x))
         with GPIO:
             GPIO.update(State.ERROR)
 
@@ -223,11 +223,12 @@ def periodic_loop() -> None:
         time.sleep(SHORT_PERIODIC_TIME)
 
 def notify(msg: str) -> None:
+    print("buttonserver:", msg, flush=True)
     if (not NOTIFICATION_PORT) or (not NOTIFICATION_IP):
         return
 
     target = (NOTIFICATION_IP, NOTIFICATION_PORT)
-    msg1 = msg.encode("ascii")
+    msg1 = msg.encode("ascii") + b"\n"
 
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -270,7 +271,7 @@ class MySpotifyConnection(threading.Semaphore):
         return State.PLAYING_1
 
     def press_blue(self) -> State:
-        print("press blue")
+        notify("press blue")
         try:
             s = self.factory()
             s.previous_track()
@@ -278,11 +279,12 @@ class MySpotifyConnection(threading.Semaphore):
             if state == State.STOPPED:
                 state = State.PLAYING_1
             return state
-        except Exception:
+        except Exception as x:
+            notify("Previous track (blue) error: " + str(x))
             return State.ERROR
 
     def press_red(self) -> State:
-        print("press red")
+        notify("press red")
         try:
             s = self.factory()
             state = self.get_state(s)
@@ -293,13 +295,13 @@ class MySpotifyConnection(threading.Semaphore):
                 s.pause_playback()
                 state = State.STOPPED
         except Exception as x:
-            print("Pause/unpause error:", x)
+            notify("Pause/unpause (red) error: " + str(x))
             state = State.ERROR
 
         return state
 
     def press_green(self) -> State:
-        print("press green")
+        notify("press green")
         try:
             s = self.factory()
             s.next_track()
@@ -307,23 +309,25 @@ class MySpotifyConnection(threading.Semaphore):
             if state == State.STOPPED:
                 state = State.PLAYING_1
             return state
-        except Exception:
+        except Exception as x:
+            notify("Next track (green) error: " + str(x))
             return State.ERROR
 
     def press_all(self) -> State:
-        print("press all")
+        notify("press all")
         try:
             s = self.factory()
             s.pause_playback()
         except Exception as x:
-            print("Pause/unpause error:", x)
+            notify("Pause (all) error: " + str(x))
         return State.ALL_PRESSED_1
 
     def press_nothing(self) -> State:
         try:
             s = self.factory()
             return self.get_state(s)
-        except Exception:
+        except Exception as x:
+            notify("Press nothing error: " + str(x))
             return State.ERROR
 
 SPOTIFY = MySpotifyConnection()
@@ -375,8 +379,9 @@ class MyHTTPRequestHandler(BaseHTTPRequestHandler):
                 state = SPOTIFY.get_state()
                 if state == State.ERROR:
                     text += ", but get_state() returns ERROR"
+                notify(text)
             except Exception as x:
-                print("Authentication error:" + str(x))
+                notify("Authentication error:" + str(x))
                 text = ("Spotify authentication token must be renewed, " +
                     '<a href="' + SPOTIFY.get_authorize_url() +
                     '">click here to log in</a>')
