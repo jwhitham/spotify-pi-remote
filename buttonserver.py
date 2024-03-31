@@ -268,7 +268,8 @@ class MySpotifyConnection(threading.Semaphore):
             if s is None:
                 s = self.factory()
             cp = s.currently_playing()
-        except Exception:
+        except Exception as x:
+            notify("unable to get_state: " + str(x))
             return State.ERROR
 
         if cp is None:
