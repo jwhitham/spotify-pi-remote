@@ -187,6 +187,14 @@ def update_event(pin: int) -> None:
                 notify("press all")
             else:
                 state = SPOTIFY.press_nothing()
+                retry = 1
+                while (state == State.ERROR) and (retry <= 3):
+                    notify(f"try to get state: attempt {retry}")
+                    state = SPOTIFY.press_nothing()
+                    retry += 1
+                if state == State.ERROR:
+                    notify("no more attempts")
+                    return
 
         with GPIO:
             GPIO.update(state)
@@ -324,8 +332,7 @@ class MySpotifyConnection(threading.Semaphore):
 
     def press_nothing(self) -> State:
         try:
-            s = self.factory()
-            return self.get_state(s)
+            return self.get_state()
         except Exception as x:
             notify("Press nothing error: " + str(x))
             return State.ERROR
